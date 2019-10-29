@@ -147,8 +147,8 @@ ENTRY(cpu_do_resume)
 	msr	cpacr_el1, x6
 
 	/* Don't change t0sz here, mask those bits when restoring */
-	mrs	x7, tcr_el1
-	bfi	x8, x7, TCR_T0SZ_OFFSET, TCR_TxSZ_WIDTH
+	mrs	x5, tcr_el1
+	bfi	x8, x5, TCR_T0SZ_OFFSET, TCR_TxSZ_WIDTH
 
 	msr	tcr_el1, x8
 	msr	vbar_el1, x9
@@ -168,7 +168,6 @@ ENTRY(cpu_do_resume)
 	/*
 	 * Restore oslsr_el1 by writing oslar_el1
 	 */
-	msr	osdlr_el1, x5
 	ubfx	x11, x11, #1, #1
 	msr	oslar_el1, x11
 	reset_pmuserenr_el0 x0			// Disable PMU access from EL0
@@ -316,6 +315,15 @@ skip_pgd:
 	mrs	x18, sctlr_el1
 	orr	x18, x18, #SCTLR_ELx_M
 	msr	sctlr_el1, x18
+	isb
+
+	/*
+	 * Invalidate the local I-cache so that any instructions fetched
+	 * speculatively from the PoC are discarded, since they may have
+	 * been dynamically patched at the PoU.
+	 */
+	ic	iallu
+	dsb	nsh
 	isb
 
 	/* Set the flag to zero to indicate that we're all done */
